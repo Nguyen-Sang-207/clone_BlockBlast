@@ -12,10 +12,113 @@
     const ADVENTURE_LEVELS = (DATA.adventure_levels && DATA.adventure_levels.levels) || [];
     const SHAPES_CATALOG = DATA.shapes || [];
 
-    // Audio Player System
+    // High-Performance Zero-Latency Web Audio & Sound System
     const audioCache = {};
+    const audioBuffers = {};
+    const audioLoadPromises = {};
     let soundEnabled = true;
     let pendingAudioTimers = [];
+    let sharedAudioCtx = null;
+    let isAudioUnlocked = false;
+
+    function getAudioContext() {
+        if (!sharedAudioCtx) {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (AudioContextClass) {
+                sharedAudioCtx = new AudioContextClass();
+            }
+        }
+        if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
+            sharedAudioCtx.resume().catch(() => {});
+        }
+        return sharedAudioCtx;
+    }
+
+    // Unlock Web Audio pipeline instantly on first user interaction (essential for iOS Safari & Android)
+    function unlockAudioSystem() {
+        if (isAudioUnlocked) return;
+        const ctx = getAudioContext();
+        if (!ctx) return;
+
+        if (ctx.state === 'suspended') {
+            ctx.resume().catch(() => {});
+        }
+
+        try {
+            // Play an inaudible 1-sample buffer to warm up device audio DAC
+            const buffer = ctx.createBuffer(1, 1, 22050);
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+            source.start(0);
+            isAudioUnlocked = true;
+        } catch (e) {}
+    }
+
+    ['pointerdown', 'touchstart', 'touchend', 'mousedown', 'keydown'].forEach(evt => {
+        window.addEventListener(evt, unlockAudioSystem, { passive: true, once: true });
+    });
+
+    if (!AUDIO_MANIFEST.btn_click) {
+        AUDIO_MANIFEST.btn_click = 'assets/audio/b7501ba6-7a59-421f-98da-a5c045705797.a8934.ogg';
+    }
+
+    // Preload audio into memory buffer for instantaneous playback
+    function preloadAudioKey(key) {
+        const relPath = AUDIO_MANIFEST[key];
+        if (!relPath || audioLoadPromises[key]) return audioLoadPromises[key];
+
+        // Also prepare HTMLAudioElement as immediate fallback
+        if (!audioCache[key]) {
+            const el = new Audio();
+            el.preload = 'auto';
+            el.src = relPath;
+            audioCache[key] = el;
+        }
+
+        audioLoadPromises[key] = fetch(relPath)
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.arrayBuffer();
+            })
+            .then(buf => {
+                const ctx = getAudioContext();
+                if (!ctx) throw new Error('No AudioContext');
+                return new Promise((resolve, reject) => {
+                    ctx.decodeAudioData(buf.slice(0), resolve, reject);
+                });
+            })
+            .then(decoded => {
+                audioBuffers[key] = decoded;
+                return decoded;
+            })
+            .catch(() => {
+                // Return null if Web Audio decode fails, HTMLAudio fallback remains available
+                return null;
+            });
+
+        return audioLoadPromises[key];
+    }
+
+    // Preload all audio assets eagerly so online play has zero network delay
+    function initAudioPreloader() {
+        const priorityKeys = ['btn_click', 'touch', 'put', 'combo_1', 'combo_2', 'combo_3', 'fill_line_start', 'fill_line_success', 'streak_rock1', 'win', 'fail'];
+        priorityKeys.forEach(k => {
+            if (AUDIO_MANIFEST[k]) preloadAudioKey(k);
+        });
+
+        // Background preload remaining keys
+        setTimeout(() => {
+            Object.keys(AUDIO_MANIFEST).forEach(k => {
+                if (!priorityKeys.includes(k)) {
+                    preloadAudioKey(k);
+                }
+            });
+        }, 150);
+    }
+
+    // Eagerly trigger preloader
+    initAudioPreloader();
 
     function clearPendingAudioTimers() {
         pendingAudioTimers.forEach(id => clearTimeout(id));
@@ -35,32 +138,33 @@
         const relPath = AUDIO_MANIFEST[key];
         if (!relPath) return;
 
+        unlockAudioSystem();
+        const ctx = getAudioContext();
+
+        // 1. High-Performance Web Audio API path (0ms hardware latency, polyphonic)
+        if (ctx && audioBuffers[key]) {
+            try {
+                const source = ctx.createBufferSource();
+                source.buffer = audioBuffers[key];
+                source.playbackRate.value = Math.min(Math.max(playbackRate, 0.5), 2.0);
+                source.connect(ctx.destination);
+                source.start(0);
+                return;
+            } catch (e) {}
+        }
+
+        // 2. Fallback path: HTMLAudioElement with cloneNode to prevent seek lag
         try {
-            if (!audioCache[key]) {
-                audioCache[key] = new Audio(relPath);
+            let snd = audioCache[key];
+            if (!snd) {
+                snd = new Audio(relPath);
+                snd.preload = 'auto';
+                audioCache[key] = snd;
             }
-            const snd = audioCache[key];
-            snd.currentTime = 0;
-            snd.playbackRate = Math.min(Math.max(playbackRate, 0.5), 2.0);
-            snd.play().catch(() => {});
+            const clone = snd.cloneNode();
+            clone.playbackRate = Math.min(Math.max(playbackRate, 0.5), 2.0);
+            clone.play().catch(() => {});
         } catch (e) {}
-    }
-
-    // Mechanical Button "Clack" Sound System
-    let sharedAudioCtx = null;
-    function getAudioContext() {
-        if (!sharedAudioCtx) {
-            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-            if (AudioContextClass) sharedAudioCtx = new AudioContextClass();
-        }
-        if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
-            sharedAudioCtx.resume().catch(() => {});
-        }
-        return sharedAudioCtx;
-    }
-
-    if (!AUDIO_MANIFEST.btn_click) {
-        AUDIO_MANIFEST.btn_click = 'assets/audio/b7501ba6-7a59-421f-98da-a5c045705797.a8934.ogg';
     }
 
     function playButtonClack() {
@@ -805,6 +909,8 @@
         const slotIdx = parseInt(e.currentTarget.dataset.slot, 10);
         const piece = currentTrayPieces[slotIdx];
         if (!piece) return;
+
+        playAudio('touch');
 
         draggedSlotIndex = slotIdx;
         draggedPiece = piece;
@@ -1591,7 +1697,7 @@
             ft.alpha -= 0.02;
 
             fxCtx.save();
-            fxCtx.font = `900 ${ft.size}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+            fxCtx.font = `900 ${ft.size}px 'Fredoka', 'Nunito', sans-serif`;
             fxCtx.textAlign = 'center';
             fxCtx.fillStyle = ft.color;
             fxCtx.shadowColor = 'rgba(0, 0, 0, 0.7)';

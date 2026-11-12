@@ -1,24 +1,44 @@
-* {
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
-            margin: 0;
-            padding: 0;
-            -webkit-tap-highlight-color: transparent;
-        }
+@font-face {
+    font-family: 'Fredoka';
+    src: url('../assets/fonts/Fredoka.woff2') format('woff2');
+    font-weight: 300 900;
+    font-style: normal;
+    font-display: swap;
+}
 
-        body {
-            background: radial-gradient(circle at 50% 35%, #233058 0%, #111728 100%);
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            overflow: hidden;
-        }
+@font-face {
+    font-family: 'Nunito';
+    src: url('../assets/fonts/Nunito.woff2') format('woff2');
+    font-weight: 700 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    --app-font: 'Fredoka', 'Nunito', 'Segoe UI Rounded', 'Arial Rounded MT Bold', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    background: radial-gradient(circle at 50% 35%, #233058 0%, #111728 100%);
+    color: #ffffff;
+    font-family: var(--app-font);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+}
 
         .app-container {
             width: 100%;
@@ -1087,7 +1107,7 @@
             line-height: 1.1;
             text-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
             margin: 4px 0 2px 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: var(--app-font);
         }
 
         .score-divider {
@@ -1130,7 +1150,7 @@
             font-size: 22px;
             font-weight: 900;
             color: #fcd34d;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: var(--app-font);
             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
         }
 
