@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#111728">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Block Blast - Authentic Web Puzzle Game Clone with Adventure & Classic modes.">
+    <title>Block Blast!</title>
+    <link rel="icon" type="image/png" href="assets/images/frame_for_crowna812_3e9.png">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="data/game_data.js"></script>
+</head>
+<body>
+    <div class="app-container view-menu">
+
+        <!-- 1. AUTHENTIC MAIN MENU VIEW (Matching Screenshot 2) -->
+        <div class="view-panel" id="menu-view">
+            <div class="menu-top-bar">
+                <button class="menu-gear-btn" id="btn-menu-settings" title="Settings">
+                    <img src="assets/images/488a434e-65a9-4abc-9501-5a3b96ea39f8.63cf6.png" alt="Settings">
+                </button>
+            </div>
+
+            <div class="menu-logo-section">
+                <img class="menu-logo-img" src="assets/images/block_blast_logo.png" alt="Block Blast!">
+                <div class="menu-subtitle">ADVENTURE MASTER</div>
+                <!-- Hidden element kept for best score logic -->
+                <div id="menu-best-score" style="display: none;">0</div>
+            </div>
+
+            <!-- Vertically Stacked Authentic Pill Buttons -->
+            <div class="menu-action-stack">
+                <button class="menu-btn menu-btn-adventure" id="btn-menu-adventure">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span>Adventure</span>
+                </button>
+
+                <button class="menu-btn menu-btn-classic" id="btn-menu-classic">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.267-8-12.362-8-5.096 0-5.096 8 0 8 5.095 0 7.267-8 12.362-8z"/>
+                    </svg>
+                    <span>Classic</span>
+                </button>
+
+                <button class="menu-btn menu-btn-more" id="btn-menu-more-games">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H9v2H7v-2H5v-2h2V9h2v2h2v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                    </svg>
+                    <span>More Games</span>
+                    <div class="btn-badge-count">5</div>
+                </button>
+            </div>
+
+            <!-- Authentic Promo Row (Bottom of Screenshot 2) -->
+            <div class="menu-promo-row">
+                <div class="menu-promo-item" id="promo-gogo">
+                    <div class="promo-circle-icon">
+                        <svg width="38" height="38" viewBox="0 0 36 36" fill="none">
+                            <rect width="36" height="36" rx="18" fill="#ffffff"/>
+                            <path d="M8 8h20v20H8z" stroke="#e11d48" stroke-width="2.5" fill="none"/>
+                            <path d="M13 13h10v10H13z" stroke="#000000" stroke-width="2.5" fill="none"/>
+                            <path d="M18 8v10M8 18h10" stroke="#000000" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <div class="promo-label-pill">GOGO! Blast</div>
+                </div>
+
+                <div class="menu-promo-item" id="promo-rings">
+                    <div class="promo-circle-icon">
+                        <svg width="38" height="38" viewBox="0 0 36 36" fill="none">
+                            <rect width="36" height="36" rx="18" fill="#e0f2fe"/>
+                            <circle cx="14" cy="18" r="9" stroke="#3b82f6" stroke-width="3" fill="none"/>
+                            <circle cx="22" cy="18" r="9" stroke="#ef4444" stroke-width="3" fill="none"/>
+                            <circle cx="18" cy="14" r="9" stroke="#22c55e" stroke-width="3" fill="none"/>
+                        </svg>
+                    </div>
+                    <div class="promo-label-pill">Rotate Rings</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. STAGE SELECTOR VIEW -->
+        <div class="view-panel hidden" id="level-select-view">
+            <div class="level-header-bar">
+                <button class="level-back-btn" id="btn-level-back" title="Back">
+                    <img src="assets/images/b94219f9-7ccf-4ff5-b4cb-611537aa6bee.a0632.png" alt="Back">
+                </button>
+                <div class="level-header-title">ADVENTURE STAGES</div>
+                <div style="width: 38px;"></div>
+            </div>
+
+            <div class="level-grid-scroll" id="level-grid-container"></div>
+        </div>
+
+        <!-- 3. AUTHENTIC GAMEPLAY VIEW (Matching Screenshot 1) -->
+        <div class="view-panel hidden" id="gameplay-view">
+            <!-- Top Bar: Crown + Best Score on Left, Settings Gear on Right -->
+            <div class="gameplay-top-bar">
+                <div class="best-score-display">
+                    <img id="icon-crown" src="assets/images/frame_for_crowna812_3e9.png" alt="Best">
+                    <div class="best-score-num" id="best-score-val">0</div>
+                </div>
+
+                <button class="gameplay-gear-btn" id="btn-gameplay-settings" title="Settings">
+                    <img id="icon-setting" src="assets/images/488a434e-65a9-4abc-9501-5a3b96ea39f8.63cf6.png" alt="Settings">
+                    <div class="gear-badge-dot">
+                        <svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="3.5"/></svg>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Large Centered Score Number (Matching Screenshot 1) -->
+            <div class="big-score-center" id="current-score">0</div>
+
+            <!-- Goal Banner (Adventure Mode Only) -->
+            <div class="adventure-goal-bar" id="adventure-goal-bar">
+                <div class="goal-title" id="goal-title">STAGE 1 TARGET: 368 PTS</div>
+                <div class="goal-progress" id="goal-progress">0 / 368</div>
+            </div>
+
+            <!-- Hidden dummy elements to safely satisfy game_logic references -->
+            <div style="display: none;" id="btn-mode-toggle"><span id="mode-label"></span></div>
+            <div style="display: none;" id="btn-game-home"></div>
+            <div style="display: none;" id="btn-restart"></div>
+            <div style="display: none;" id="btn-settings"></div>
+
+            <!-- 8x8 Board Container -->
+            <div class="board-wrapper" id="board-wrapper">
+                <div id="board"></div>
+                <canvas id="fx-canvas"></canvas>
+
+                <!-- Authentic Encouragement & Combo Popup Banner -->
+                <div id="banner-popup">
+                    <canvas id="banner-word-canvas"></canvas>
+                    <div class="combo-badge-row" id="combo-badge-row" style="display: none;">
+                        <img class="combo-text-sprite" src="assets/images/c8ed10b6-5cdc-45bb-95bd-d5dad4eb9643.a104b.png" alt="COMBO">
+                        <canvas id="combo-num-canvas" height="44"></canvas>
+                    </div>
+                </div>
+
+                <!-- NEW BEST! Celebration Banner -->
+                <div class="new-best-banner" id="new-best-banner">
+                    <img class="new-best-crown" src="assets/images/frame_for_crowna812_3e9.png" alt="Crown">
+                    <div class="new-best-text">NEW BEST!</div>
+                </div>
+
+                <!-- Score Milestone Celebration Banner -->
+                <div class="milestone-banner" id="milestone-banner">
+                    <div class="milestone-score-text" id="milestone-score-text">1000</div>
+                    <div class="milestone-label">MILESTONE</div>
+                </div>
+            </div>
+
+            <!-- Tray with 3 Pieces (Transparent Background) -->
+            <div class="bottom-tray" id="tray">
+                <div class="tray-slot" data-slot="0"></div>
+                <div class="tray-slot" data-slot="1"></div>
+                <div class="tray-slot" data-slot="2"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Drag Proxy -->
+    <div id="drag-proxy">
+        <div id="drag-grid"></div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Game Over Modal (Matching Menu & Settings Style) -->
+    <div class="modal-overlay" id="game-over-modal">
+        <div class="modal-authentic-card">
+            <!-- 3D Official GAME OVER Title -->
+            <div class="modal-authentic-title-wrap">
+                <img class="gameover-title-img" src="assets/images/8ed24086-36b0-4400-a801-0a95d6e669a6.c2c6f.png" alt="GAME OVER">
+            </div>
+
+            <!-- Score Showcase Box -->
+            <div class="modal-score-container">
+                <div class="score-primary-section">
+                    <span class="score-primary-label">SCORE</span>
+                    <span class="score-primary-val" id="modal-final-score">0</span>
+                </div>
+                <div class="score-divider"></div>
+                <div class="best-score-row">
+                    <div class="best-score-label-group">
+                        <img class="best-score-crown-icon" src="assets/images/frame_for_crowna812_3e9.png" alt="Best">
+                        <span class="best-score-tag">BEST</span>
+                    </div>
+                    <span class="best-score-val-text" id="modal-best-score">0</span>
+                </div>
+            </div>
+
+            <!-- Session Stats Grid -->
+            <div class="session-stats-grid">
+                <div class="stat-cell">
+                    <span class="stat-cell-label">LINES</span>
+                    <span class="stat-cell-val" id="stat-lines">0</span>
+                </div>
+                <div class="stat-cell">
+                    <span class="stat-cell-label">BEST COMBO</span>
+                    <span class="stat-cell-val" id="stat-best-combo">0</span>
+                </div>
+                <div class="stat-cell">
+                    <span class="stat-cell-label">BLOCKS</span>
+                    <span class="stat-cell-val" id="stat-blocks">0</span>
+                </div>
+                <div class="stat-cell">
+                    <span class="stat-cell-label">TIME</span>
+                    <span class="stat-cell-val" id="stat-time">0:00</span>
+                </div>
+            </div>
+
+            <!-- Vertically Stacked Pill Action Buttons -->
+            <div class="modal-action-stack">
+                <button class="menu-btn modal-action-btn menu-btn-revive" id="btn-modal-revive" style="display: none;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                    <span>Second Chance!</span>
+                </button>
+
+                <button class="menu-btn modal-action-btn menu-btn-classic" id="btn-modal-restart">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                    </svg>
+                    <span>Play Again</span>
+                </button>
+
+                <button class="menu-btn modal-action-btn menu-btn-adventure" id="btn-modal-gameover-home">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                    </svg>
+                    <span>Main Menu</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stage Win Modal (Adventure - Matching Menu & Settings Style) -->
+    <div class="modal-overlay" id="win-modal">
+        <div class="modal-authentic-card">
+            <!-- Close 'X' Button Top-Right -->
+            <button class="modal-authentic-close" id="btn-win-x" title="Close">
+                <img src="assets/images/bdb56a2a-a434-46a7-ad2b-4673440bf32c.07e1f.png" alt="Close">
+            </button>
+
+            <!-- 3D Style STAGE CLEAR Title -->
+            <div class="modal-authentic-title-wrap">
+                <div class="win-title-text">STAGE CLEAR!</div>
+            </div>
+
+            <!-- Score Showcase Box -->
+            <div class="modal-score-container">
+                <div class="score-primary-section">
+                    <span class="score-primary-label">STAGE SCORE</span>
+                    <span class="score-primary-val" id="modal-win-score">0</span>
+                </div>
+            </div>
+
+            <!-- Vertically Stacked Pill Action Buttons -->
+            <div class="modal-action-stack">
+                <button class="menu-btn modal-action-btn menu-btn-classic" id="btn-modal-next">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <span>Next Stage</span>
+                </button>
+
+                <button class="menu-btn modal-action-btn menu-btn-more" id="btn-modal-stages-list">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+                    </svg>
+                    <span>Stages List</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal (Matching Menu Style) -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="settings-card">
+            <!-- Close 'X' Button Top-Right -->
+            <button class="settings-close-circle" id="btn-settings-x" title="Close">
+                <img src="assets/images/bdb56a2a-a434-46a7-ad2b-4673440bf32c.07e1f.png" alt="Close">
+            </button>
+
+            <!-- 3D Official Settings Title -->
+            <div class="settings-title-wrap">
+                <img class="settings-title-img" src="assets/images/b0152297-3116-45d5-84bf-d536a87a9670.01f24.png" alt="SETTINGS">
+            </div>
+
+            <!-- Vertically Stacked Action Buttons Styled Like Menu Buttons -->
+            <div class="settings-action-stack">
+                <button class="menu-btn settings-btn menu-btn-classic" id="btn-sound-toggle">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                    </svg>
+                    <span class="btn-label">Sound: ON</span>
+                </button>
+
+                <button class="menu-btn settings-btn menu-btn-adventure" id="btn-settings-restart">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                    </svg>
+                    <span>Restart Game</span>
+                </button>
+
+                <button class="menu-btn settings-btn menu-btn-more" id="btn-settings-home">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                    </svg>
+                    <span>Main Menu</span>
+                </button>
+
+                <button class="menu-btn settings-btn menu-btn-resume" id="btn-settings-close">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <span>Resume</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/game_logic.js"></script>
+</body>
+</html>
