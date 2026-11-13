@@ -785,6 +785,32 @@ body {
             background: #0369a1;
         }
 
+        /* Faceted blocks with a bright top plane and a shaded lower edge. */
+        .block-unit {
+            border-radius: 4px;
+            border: 1px solid rgba(24, 27, 66, 0.38) !important;
+            box-shadow: inset 1px 1px 0 rgba(255,255,255,0.24), inset -1px -2px 0 rgba(8,15,45,0.2), 0 2px 0 rgba(8,15,45,0.42), 0 3px 4px rgba(4,12,35,0.28);
+        }
+        .block-unit::before {
+            display: block;
+            height: 48%;
+            background: linear-gradient(145deg, rgba(255,255,255,0.42), rgba(255,255,255,0.1) 48%, transparent 82%);
+            border-radius: 3px 3px 45% 20%;
+        }
+        .block-unit::after {
+            display: block;
+            height: 20%;
+            background: linear-gradient(180deg, rgba(15,20,55,0.08), rgba(15,20,55,0.34));
+            border-radius: 0 0 3px 3px;
+        }
+        .block-unit.color-1 { background: linear-gradient(150deg, #ff91a5 0%, #fb526f 52%, #df3156 100%); }
+        .block-unit.color-2 { background: linear-gradient(150deg, #ffe28b 0%, #ffbd43 52%, #e99620 100%); }
+        .block-unit.color-3 { background: linear-gradient(150deg, #d6a4ff 0%, #a66af3 52%, #7c43d4 100%); }
+        .block-unit.color-4 { background: linear-gradient(150deg, #ffc092 0%, #ff8c58 52%, #db5f35 100%); }
+        .block-unit.color-5 { background: linear-gradient(150deg, #ff9b9b 0%, #f45863 52%, #cf354c 100%); }
+        .block-unit.color-6 { background: linear-gradient(150deg, #a0f2c0 0%, #4bd492 52%, #1a9e6b 100%); }
+        .block-unit.color-7 { background: linear-gradient(150deg, #a5e6ff 0%, #53bdf4 52%, #2585d3 100%); }
+
         /* Collectible Gems on Board */
         .gem-overlay {
             width: 24px;
@@ -809,7 +835,7 @@ body {
         /* Encouragement / Combo Popup Banner */
         #banner-popup {
             position: absolute;
-            top: 42%;
+            top: 54%;
             left: 50%;
             transform: translate(-50%, -50%) scale(0);
             pointer-events: none;
@@ -848,7 +874,8 @@ body {
         }
 
         #banner-word-canvas {
-            filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.65));
+            overflow: visible;
+            filter: drop-shadow(0 5px 12px rgba(2, 8, 35, 0.52));
         }
 
         .combo-badge-row {
@@ -859,9 +886,11 @@ body {
             filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
         }
 
-        .combo-text-sprite {
-            height: 32px;
-            object-fit: contain;
+        .combo-text-label {
+            color: #fff3b0;
+            font: 1000 italic 22px 'Fredoka', 'Nunito', sans-serif;
+            letter-spacing: 1.5px;
+            text-shadow: 0 2px 0 #a45b12, 0 0 12px rgba(255, 190, 50, 0.8);
         }
 
         /* Bottom Tray (Matching Screenshot 1: Completely transparent, clean piece slots) */
@@ -1365,7 +1394,7 @@ body {
         /* ========== ENGAGEMENT FEATURE 4: Score Milestone Celebration ========== */
         .milestone-banner {
             position: absolute;
-            top: 30%;
+            top: 13%;
             left: 50%;
             transform: translate(-50%, -50%) scale(0);
             pointer-events: none;

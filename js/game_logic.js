@@ -5,9 +5,6 @@
     // Game Data from window.BB_DATA
     const DATA = window.BB_DATA || {};
     const AUDIO_MANIFEST = DATA.audio_manifest || {};
-    const UI_SPRITES = DATA.ui_sprites || {};
-    const ENCOURAGE_MAP = DATA.encourage_map || {};
-    const COMBO_GLYPHS = DATA.combo_glyphs || {};
     const BLOCK_COLORS = DATA.block_colors || {};
     const ADVENTURE_LEVELS = (DATA.adventure_levels && DATA.adventure_levels.levels) || [];
     const SHAPES_CATALOG = DATA.shapes || [];
@@ -204,13 +201,7 @@
         img.src = src;
     }
 
-    // Preload Sprite Sheets
-    if (UI_SPRITES.encourage_tex) {
-        preloadImage('encourage_tex', UI_SPRITES.encourage_tex);
-    }
-    if (UI_SPRITES.combo_num_white) {
-        preloadImage('combo_num_white', UI_SPRITES.combo_num_white);
-    }
+    // Encouragement words and combo labels are drawn in code; no sprite sheet needed.
     if (DATA.gem_manifest) {
         Object.entries(DATA.gem_manifest).forEach(([k, src]) => {
             preloadImage('gem_' + k, src);
@@ -226,6 +217,7 @@
     let displayedScore = 0;
     let bestScore = parseInt(localStorage.getItem('bb_best_score') || '0', 10);
     let comboStreak = 0; // Consecutive turns that cleared lines
+    let turnsWithoutClear = 0;
     let currentTrayPieces = [null, null, null];
     let grid = Array(64).fill(0); // 8x8 grid (0 = empty, 1-7 = color index, 100+ = gem)
     let adventureCollectedGems = 0;
@@ -332,10 +324,18 @@
     let lineFlashes = [];
     let shockwaves = [];
     let floatingTexts = [];
+    let lastFxFrame = 0;
+    let fxFrameId = 0;
 
     function resizeFxCanvas() {
         const board = document.getElementById('board');
         if (!board || !fxCanvas) return;
+        // iOS 12 Safari does not support CSS aspect-ratio; size the square board
+        // explicitly so the grid keeps a measurable height on older devices.
+        const boardWrapper = document.getElementById('board-wrapper');
+        if (boardWrapper) {
+            boardWrapper.style.height = boardWrapper.getBoundingClientRect().width + 'px';
+        }
         fxCanvas.width = board.clientWidth;
         fxCanvas.height = board.clientHeight;
     }
@@ -349,58 +349,63 @@
     function renderEncourageWord(key) {
         if (!bannerWordCanvas) return;
         const ctx = bannerWordCanvas.getContext('2d');
-        const img = imageCache['encourage_tex'];
-        const meta = ENCOURAGE_MAP[key] || ENCOURAGE_MAP['good_blue'];
-
-        if (!img || !meta) return;
-
-        bannerWordCanvas.width = meta.w * 1.5;
-        bannerWordCanvas.height = meta.h * 1.5;
-        ctx.clearRect(0, 0, bannerWordCanvas.width, bannerWordCanvas.height);
-
-        ctx.drawImage(
-            img,
-            meta.x, meta.y, meta.w, meta.h,
-            0, 0, bannerWordCanvas.width, bannerWordCanvas.height
-        );
+        const word = key.split('_')[0].replace('excellect', 'excellent').toUpperCase();
+        const palettes = {
+            GOOD: ['#b9f7ff', '#3dbbff', '#1767ff'],
+            GREAT: ['#fff6b0', '#ffc83d', '#ff7a18'],
+            AMAZING: ['#ffd2f4', '#ff5db5', '#a32bff'],
+            EXCELLENT: ['#d7ffe7', '#47e58c', '#078b67'],
+            UNBELIEVABLE: ['#f2d5ff', '#bc6aff', '#6734e8']
+        };
+        const colors = palettes[word] || palettes.GOOD;
+        const fontSize = word.length > 9 ? 38 : word.length > 7 ? 44 : 52;
+        ctx.font = `1000 italic ${fontSize}px 'Fredoka', 'Nunito', sans-serif`;
+        const width = Math.ceil(ctx.measureText(word).width + 34);
+        bannerWordCanvas.width = width;
+        bannerWordCanvas.height = 76;
+        ctx.clearRect(0, 0, width, 76);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineJoin = 'round';
+        ctx.font = `1000 italic ${fontSize}px 'Fredoka', 'Nunito', sans-serif`;
+        ctx.shadowColor = colors[2];
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetY = 5;
+        ctx.strokeStyle = 'rgba(15, 25, 75, 0.72)';
+        ctx.lineWidth = 9;
+        ctx.strokeText(word, width / 2, 37);
+        const fill = ctx.createLinearGradient(0, 8, 0, 66);
+        fill.addColorStop(0, '#ffffff');
+        fill.addColorStop(0.34, colors[0]);
+        fill.addColorStop(0.72, colors[1]);
+        fill.addColorStop(1, colors[2]);
+        ctx.fillStyle = fill;
+        ctx.fillText(word, width / 2, 37);
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeText(word, width / 2, 35);
     }
 
     function renderComboNumber(num) {
         if (!comboNumCanvas) return;
         const ctx = comboNumCanvas.getContext('2d');
-        const img = imageCache['combo_num_white'];
-        if (!img) return;
-
         const str = String(num);
-        let totalWidth = 0;
-
-        for (let i = 0; i < str.length; i++) {
-            const char = str[i];
-            const glyph = COMBO_GLYPHS[char];
-            if (glyph) {
-                totalWidth += (glyph.rect.width * 0.32) + 2;
-            }
-        }
-
-        comboNumCanvas.width = Math.max(totalWidth, 10);
-        comboNumCanvas.height = 44;
+        ctx.font = "1000 30px 'Fredoka', 'Nunito', sans-serif";
+        comboNumCanvas.width = Math.ceil(ctx.measureText(str).width + 8);
+        comboNumCanvas.height = 40;
         ctx.clearRect(0, 0, comboNumCanvas.width, comboNumCanvas.height);
-
-        let curX = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str[i];
-            const glyph = COMBO_GLYPHS[char];
-            if (glyph) {
-                const w = glyph.rect.width * 0.32;
-                const h = glyph.rect.height * 0.32;
-                ctx.drawImage(
-                    img,
-                    glyph.rect.x, glyph.rect.y, glyph.rect.width, glyph.rect.height,
-                    curX, (44 - h) / 2, w, h
-                );
-                curX += w + 2;
-            }
-        }
+        ctx.font = "1000 30px 'Fredoka', 'Nunito', sans-serif";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#75500b';
+        ctx.strokeText(str, comboNumCanvas.width / 2, 20);
+        ctx.fillStyle = '#fff8d5';
+        ctx.shadowColor = '#ffbc22';
+        ctx.shadowBlur = 12;
+        ctx.fillText(str, comboNumCanvas.width / 2, 20);
     }
 
     function showBanner(encourageKey, comboNum) {
@@ -533,6 +538,7 @@
         score = 0;
         displayedScore = 0;
         comboStreak = 0;
+        turnsWithoutClear = 0;
         isGameOver = false;
         clearPendingAudioTimers();
 
@@ -620,6 +626,17 @@
         let bestScore = -999;
         let canFitCount = 0;
         let lineClearingPlacements = 0;
+        let bestLinesCleared = 0;
+        const baseRowCounts = Array(8).fill(0);
+        const baseColCounts = Array(8).fill(0);
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (grid[r * 8 + c] !== 0) {
+                    baseRowCounts[r]++;
+                    baseColCounts[c]++;
+                }
+            }
+        }
 
         const rows = matrix.length;
         const cols = matrix[0].length;
@@ -637,17 +654,8 @@
                     canFitCount++;
 
                     // Simulate placement and count cleared lines
-                    let rowCounts = Array(8).fill(0);
-                    let colCounts = Array(8).fill(0);
-
-                    for (let r = 0; r < 8; r++) {
-                        for (let c = 0; c < 8; c++) {
-                            if (grid[r * 8 + c] !== 0) {
-                                rowCounts[r]++;
-                                colCounts[c]++;
-                            }
-                        }
-                    }
+                    const rowCounts = baseRowCounts.slice();
+                    const colCounts = baseColCounts.slice();
 
                     for (let r = 0; r < rows; r++) {
                         for (let c = 0; c < cols; c++) {
@@ -669,6 +677,7 @@
                     if (linesCleared > 0) {
                         lineClearingPlacements++;
                     }
+                    bestLinesCleared = Math.max(bestLinesCleared, linesCleared);
 
                     // Score: clears lines (+100/line), fits comfortably, smaller pieces are more flexible
                     const placementScore = (linesCleared * 120) + (10 - blockCount);
@@ -683,6 +692,7 @@
             placeable: canFitCount > 0,
             canFitCount: canFitCount,
             clearsLine: lineClearingPlacements > 0,
+            bestLinesCleared: bestLinesCleared,
             bestScore: bestScore,
             blockCount: blockCount
         };
@@ -690,7 +700,7 @@
 
     // Smart Piece Selection biased towards easy, line-clearing, and manageable shapes
     function getSmartPiece(options = {}) {
-        const { preferClearing = false, preferEasy = false } = options;
+        const { preferClearing = false, preferEasy = false, comboAssist = 0 } = options;
 
         // Categorize catalog shapes
         // Easy shapes: 1x1, 1x2, 2x1, 1x3, 3x1, 2x2, small L (3 blocks)
@@ -713,7 +723,12 @@
 
                 // 2. High boost for pieces that guarantee or easily create line clears!
                 if (evalResult.clearsLine) {
-                    weight += preferClearing ? 80 : 45;
+                    weight += (preferClearing ? 80 : 45) + comboAssist * 90;
+                    weight += Math.max(0, evalResult.bestLinesCleared - 1) * (100 + comboAssist * 180);
+                }
+
+                if (comboAssist > 0 && !evalResult.clearsLine) {
+                    weight *= Math.max(0.12, 1 - comboAssist * 0.82);
                 }
 
                 // 3. Penalty for giant 3x3 blocks or 5-long bars if board is getting tight
@@ -725,7 +740,7 @@
                     weight += 40;
                 }
 
-                candidates.push({ shapeMeta, weight });
+                candidates.push({ shapeMeta, weight, evalResult });
             }
         }
 
@@ -738,12 +753,17 @@
             };
         }
 
-        // Weighted random selection
-        const totalWeight = candidates.reduce((sum, c) => sum + c.weight, 0);
+        // During a dry spell, make the first tray slot a reliable line-clear
+        // opportunity while keeping the remaining slots varied.
+        const clearingCandidates = candidates.filter(c => c.evalResult.clearsLine);
+        const selectionPool = preferClearing && comboAssist >= 0.45 && clearingCandidates.length
+            ? clearingCandidates
+            : candidates;
+        const totalWeight = selectionPool.reduce((sum, c) => sum + c.weight, 0);
         let randVal = Math.random() * totalWeight;
-        let chosenShape = candidates[0].shapeMeta;
+        let chosenShape = selectionPool[0].shapeMeta;
 
-        for (const cand of candidates) {
+        for (const cand of selectionPool) {
             randVal -= cand.weight;
             if (randVal <= 0) {
                 chosenShape = cand.shapeMeta;
@@ -754,7 +774,8 @@
         let color = Math.floor(Math.random() * 7) + 1;
         // 10% chance to infuse single/small pieces with a special power-up!
         let powerUp = null;
-        if (chosenShape.matrix.length <= 2 && chosenShape.matrix[0].length <= 2 && Math.random() < 0.12) {
+        const powerUpChance = 0.12 + comboAssist * 0.12;
+        if (chosenShape.matrix.length <= 2 && chosenShape.matrix[0].length <= 2 && Math.random() < powerUpChance) {
             powerUp = Math.random() < 0.5 ? 'bomb' : 'lightning';
             color = powerUp === 'bomb' ? 20 : 21;
         }
@@ -773,14 +794,21 @@
             if (grid[i] !== 0) occupied++;
         }
         const isCrowded = occupied >= 36; // 56%+ full
+        // Ease up after a dry spell or when the board is crowded. Successful
+        // clears gradually hand control back to the normal piece mix.
+        const comboAssist = Math.min(1, Math.max(
+            turnsWithoutClear / 2,
+            Math.max(0, occupied - 28) / 24,
+            comboStreak >= 2 ? 0.68 : comboStreak === 1 ? 0.35 : 0
+        ));
 
         // Strategy for the 3 pieces in tray:
         // Slot 0: Line-clearing enabler (helps player trigger combos)
         // Slot 1: Easy/small shape (easy to place, prevents game over)
         // Slot 2: Balanced/fun shape
-        const p1 = getSmartPiece({ preferClearing: true, preferEasy: isCrowded });
-        const p2 = getSmartPiece({ preferClearing: false, preferEasy: true });
-        const p3 = getSmartPiece({ preferClearing: isCrowded, preferEasy: false });
+        const p1 = getSmartPiece({ preferClearing: true, preferEasy: isCrowded, comboAssist });
+        const p2 = getSmartPiece({ preferClearing: comboAssist >= 0.72, preferEasy: true, comboAssist: comboAssist * 0.45 });
+        const p3 = getSmartPiece({ preferClearing: isCrowded || comboAssist >= 0.4, preferEasy: false, comboAssist: comboAssist * 0.8 });
 
         currentTrayPieces = [p1, p2, p3];
 
@@ -885,22 +913,52 @@
 
     function initDragListeners() {
         const traySlots = document.querySelectorAll('.tray-slot');
+        const hasPointerEvents = !!window.PointerEvent;
+        const hasTouchEvents = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
-        traySlots.forEach(slot => {
-            slot.addEventListener('pointerdown', handleDragStart);
-        });
-
-        window.addEventListener('pointermove', handleDragMove);
-        window.addEventListener('pointerup', handleDragEnd);
-        window.addEventListener('pointercancel', handleDragEnd);
-
-        // Reset idle timer on general user interaction while playing
-        window.addEventListener('pointerdown', (e) => {
-            if (!e.target.closest('.tray-slot') && currentView === 'gameplay' && !isGameOver) {
+        function resetHintOnBoardInteraction(e) {
+            if (e.target && e.target.closest && !e.target.closest('.tray-slot') && currentView === 'gameplay' && !isGameOver) {
                 clearIdleHint();
                 resetIdleHintTimer();
             }
-        }, { passive: true });
+        }
+
+        if (hasPointerEvents) {
+            traySlots.forEach(slot => slot.addEventListener('pointerdown', handleDragStart));
+            window.addEventListener('pointermove', handleDragMove);
+            window.addEventListener('pointerup', handleDragEnd);
+            window.addEventListener('pointercancel', handleDragEnd);
+            window.addEventListener('pointerdown', resetHintOnBoardInteraction, { passive: true });
+        } else if (hasTouchEvents) {
+            // Pointer Events arrived after iOS 12. Use native touch events there.
+            traySlots.forEach(slot => slot.addEventListener('touchstart', e => {
+                if (e.cancelable) e.preventDefault();
+                handleDragStart(createTouchPointEvent(e));
+            }, { passive: false }));
+            window.addEventListener('touchmove', e => {
+                if (draggedPiece && e.cancelable) e.preventDefault();
+                handleDragMove(createTouchPointEvent(e));
+            }, { passive: false });
+            window.addEventListener('touchend', e => handleDragEnd(createTouchPointEvent(e)), { passive: false });
+            window.addEventListener('touchcancel', e => handleDragEnd(createTouchPointEvent(e)), { passive: false });
+            window.addEventListener('touchstart', resetHintOnBoardInteraction, { passive: true });
+        } else {
+            traySlots.forEach(slot => slot.addEventListener('mousedown', handleDragStart));
+            window.addEventListener('mousemove', handleDragMove);
+            window.addEventListener('mouseup', handleDragEnd);
+            window.addEventListener('mousedown', resetHintOnBoardInteraction);
+        }
+    }
+
+    function createTouchPointEvent(e) {
+        const touch = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]);
+        return {
+            clientX: touch ? touch.clientX : 0,
+            clientY: touch ? touch.clientY : 0,
+            currentTarget: e.currentTarget,
+            target: e.target,
+            pointerType: 'touch'
+        };
     }
 
     function handleDragStart(e) {
@@ -1133,7 +1191,12 @@
             const matrix = piece.matrix;
             const rows = matrix.length;
             const cols = matrix[0].length;
-            const blockCount = matrix.flat().filter(x => x === 1).length;
+            let blockCount = 0;
+            for (let r = 0; r < matrix.length; r++) {
+                for (let c = 0; c < matrix[r].length; c++) {
+                    if (matrix[r][c] === 1) blockCount++;
+                }
+            }
 
             for (let targetR = 0; targetR <= 8 - rows; targetR++) {
                 for (let targetC = 0; targetC <= 8 - cols; targetC++) {
@@ -1393,6 +1456,7 @@
         clearPendingAudioTimers();
 
         if (linesCleared > 0) {
+            turnsWithoutClear = 0;
             // Player successfully cleared lines! Increment combo streak
             comboStreak++;
             sessionLinesCleared += linesCleared;
@@ -1421,8 +1485,8 @@
             }
 
             // Stage 1: Line Flash Animation
-            rowsToClear.forEach(r => lineFlashes.push({ type: 'row', index: r, alpha: 1.0 }));
-            colsToClear.forEach(c => lineFlashes.push({ type: 'col', index: c, alpha: 1.0 }));
+            rowsToClear.forEach((r, i) => lineFlashes.push({ type: 'row', index: r, alpha: 1.0, hue: (i * 57 + r * 29) % 360, progress: 0 }));
+            colsToClear.forEach((c, i) => lineFlashes.push({ type: 'col', index: c, alpha: 1.0, hue: (i * 57 + c * 29 + 150) % 360, progress: 0 }));
 
             // Stage 2: Staggered Cell Dissolve & Particles (100ms)
             setTimeout(() => {
@@ -1577,6 +1641,7 @@
             // Placement resulted in NO cleared lines:
             // 1. Immediately reset combo streak back to 0
             comboStreak = 0;
+            turnsWithoutClear++;
             // 2. Play standard piece drop sound ONLY (no combo sound, no cheer)
             playAudio('put');
         }
@@ -1594,7 +1659,7 @@
 
         const colorCfg = BLOCK_COLORS[colorIdx] || BLOCK_COLORS[1];
 
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 4 && particles.length < 240; i++) {
             const angle = Math.random() * Math.PI * 2;
             const speed = Math.random() * 5 + 2.5;
             particles.push({
@@ -1624,31 +1689,48 @@
 
     // FX Canvas Animation Loop
     function renderFxCanvas() {
-        if (!fxCtx || !fxCanvas) {
-            requestAnimationFrame(renderFxCanvas);
-            return;
-        }
+        if (!fxCtx || !fxCanvas || document.hidden) return;
+
+        const now = performance.now();
+        const delta = lastFxFrame ? Math.min((now - lastFxFrame) / 16.67, 2.5) : 1;
+        lastFxFrame = now;
 
         fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
 
         // 1. Line Sweep Lasers/Flashes
         lineFlashes = lineFlashes.filter(flash => {
             fxCtx.save();
-            fxCtx.fillStyle = `rgba(255, 255, 255, ${flash.alpha * 0.9})`;
-            fxCtx.shadowColor = '#ffffff';
-            fxCtx.shadowBlur = 12;
+            const glow = `hsla(${flash.hue}, 100%, 68%, ${flash.alpha})`;
+            fxCtx.fillStyle = glow;
+            fxCtx.shadowColor = glow;
+            fxCtx.shadowBlur = 18;
 
             const cellW = fxCanvas.width / 8;
             const cellH = fxCanvas.height / 8;
 
             if (flash.type === 'row') {
                 fxCtx.fillRect(0, flash.index * cellH, fxCanvas.width, cellH);
+                const streakX = flash.progress * fxCanvas.width;
+                const streak = fxCtx.createLinearGradient(streakX - cellW * 1.5, 0, streakX + cellW * 1.5, 0);
+                streak.addColorStop(0, 'rgba(255,255,255,0)');
+                streak.addColorStop(0.5, `hsla(${flash.hue},100%,92%,${flash.alpha})`);
+                streak.addColorStop(1, 'rgba(255,255,255,0)');
+                fxCtx.fillStyle = streak;
+                fxCtx.fillRect(streakX - cellW * 1.5, flash.index * cellH, cellW * 3, cellH);
             } else {
                 fxCtx.fillRect(flash.index * cellW, 0, cellW, fxCanvas.height);
+                const streakY = flash.progress * fxCanvas.height;
+                const streak = fxCtx.createLinearGradient(0, streakY - cellH * 1.5, 0, streakY + cellH * 1.5);
+                streak.addColorStop(0, 'rgba(255,255,255,0)');
+                streak.addColorStop(0.5, `hsla(${flash.hue},100%,92%,${flash.alpha})`);
+                streak.addColorStop(1, 'rgba(255,255,255,0)');
+                fxCtx.fillStyle = streak;
+                fxCtx.fillRect(flash.index * cellW, streakY - cellH * 1.5, cellW, cellH * 3);
             }
             fxCtx.restore();
 
-            flash.alpha -= 0.08;
+            flash.alpha -= 0.08 * delta;
+            flash.progress = Math.min(1, flash.progress + 0.09 * delta);
             return flash.alpha > 0;
         });
 
@@ -1662,19 +1744,19 @@
             fxCtx.stroke();
             fxCtx.restore();
 
-            wave.radius += 12;
-            wave.alpha -= 0.05;
+            wave.radius += 12 * delta;
+            wave.alpha -= 0.05 * delta;
             return wave.alpha > 0 && wave.radius < wave.maxRadius;
         });
 
         // 3. Debris Cube Particles
         particles = particles.filter(p => {
-            p.x += p.vx;
-            p.y += p.vy;
-            p.vy += 0.28; // Gravity
-            p.vx *= 0.96; // Air resistance
-            p.rot += p.vRot;
-            p.alpha -= 0.024;
+            p.x += p.vx * delta;
+            p.y += p.vy * delta;
+            p.vy += 0.28 * delta; // Gravity
+            p.vx *= Math.pow(0.96, delta); // Air resistance
+            p.rot += p.vRot * delta;
+            p.alpha -= 0.024 * delta;
 
             fxCtx.save();
             fxCtx.translate(p.x, p.y);
@@ -1693,8 +1775,8 @@
 
         // 4. Floating Score Labels
         floatingTexts = floatingTexts.filter(ft => {
-            ft.y += ft.vy;
-            ft.alpha -= 0.02;
+            ft.y += ft.vy * delta;
+            ft.alpha -= 0.02 * delta;
 
             fxCtx.save();
             fxCtx.font = `900 ${ft.size}px 'Fredoka', 'Nunito', sans-serif`;
@@ -1709,8 +1791,18 @@
             return ft.alpha > 0;
         });
 
-        requestAnimationFrame(renderFxCanvas);
+        fxFrameId = requestAnimationFrame(renderFxCanvas);
     }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            if (fxFrameId) cancelAnimationFrame(fxFrameId);
+            fxFrameId = 0;
+            lastFxFrame = 0;
+        } else if (!fxFrameId) {
+            fxFrameId = requestAnimationFrame(renderFxCanvas);
+        }
+    });
 
     // Confetti Explosion for Perfect Clear
     function triggerConfettiExplosion() {
@@ -1951,6 +2043,7 @@
         score = 0;
         displayedScore = 0;
         comboStreak = 0;
+        turnsWithoutClear = 0;
         isGameOver = false;
         clearPendingAudioTimers();
 
